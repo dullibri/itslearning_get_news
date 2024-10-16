@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  selenium:
+    image: seleniarm/standalone-chromium:102.0.5005.61
+    environment:
+      START_XVFB: 'false'
+      SE_NODE_MAX_SESSIONS: 5
+      JAVA_OPTS: "-XX:ActiveProcessorCount=5"
+      SE_NODE_OVERRIDE_MAX_SESSIONS: 5
+    volumes:
+      - /dev/shm:/dev/shm
+
+  scraper:
+    build: .
+    environment:
+      - ITSLEARNING_USERNAME=${ITSLEARNING_USERNAME}
+      - ITSLEARNING_PASSWORD=${ITSLEARNING_PASSWORD}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_TO=${EMAIL_TO}
+    depends_on:
+      - selenium
