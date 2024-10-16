@@ -1,14 +1,9 @@
-
 import os
-import json
 import time
-import boto3
-from botocore.exceptions import ClientError
+import logging
+import argparse
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.options import Options
-import chromedriver_binary 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,10 +12,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 import traceback
-import logging
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true')
@@ -31,38 +23,18 @@ if args.debug:
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 else:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
-# Initialize the SSM client
-ssm = boto3.client('ssm')
 
 def get_parameters():
-    if args.local:
-        # Lokale Ausführung
-        logging.info("Get parameters locally")
-        load_dotenv()
-        return {
-            'ITSLEARNING_USERNAME': os.getenv('ITSLEARNING_USERNAME'),
-            'ITSLEARNING_PASSWORD': os.getenv('ITSLEARNING_PASSWORD'),
-            'SMTP_SERVER': os.getenv('SMTP_SERVER'),
-            'SMTP_PORT': os.getenv('SMTP_PORT'),
-            'SMTP_USERNAME': os.getenv('SMTP_USERNAME'),
-            'SMTP_PASSWORD': os.getenv('SMTP_PASSWORD'),
-            'EMAIL_FROM': os.getenv('EMAIL_FROM'),
-            'EMAIL_TO': os.getenv('EMAIL_TO')
-        }
-    else:
-        # AWS Lambda oder Docker Ausführung
-        return {
-            'ITSLEARNING_USERNAME': os.environ.get('ITSLEARNING_USERNAME'),
-            'ITSLEARNING_PASSWORD': os.environ.get('ITSLEARNING_PASSWORD'),
-            'SMTP_SERVER': os.environ.get('SMTP_SERVER'),
-            'SMTP_PORT': os.environ.get('SMTP_PORT'),
-            'SMTP_USERNAME': os.environ.get('SMTP_USERNAME'),
-            'SMTP_PASSWORD': os.environ.get('SMTP_PASSWORD'),
-            'EMAIL_FROM': os.environ.get('EMAIL_FROM'),
-            'EMAIL_TO': os.environ.get('EMAIL_TO')
-        }
-
+    return {
+        'ITSLEARNING_USERNAME': os.environ.get('ITSLEARNING_USERNAME'),
+        'ITSLEARNING_PASSWORD': os.environ.get('ITSLEARNING_PASSWORD'),
+        'SMTP_SERVER': os.environ.get('SMTP_SERVER'),
+        'SMTP_PORT': os.environ.get('SMTP_PORT'),
+        'SMTP_USERNAME': os.environ.get('SMTP_USERNAME'),
+        'SMTP_PASSWORD': os.environ.get('SMTP_PASSWORD'),
+        'EMAIL_FROM': os.environ.get('EMAIL_FROM'),
+        'EMAIL_TO': os.environ.get('EMAIL_TO')
+    }
 
 def get_driver(is_local=False):
     chrome_options = Options()
@@ -71,18 +43,9 @@ def get_driver(is_local=False):
     chrome_options.add_argument('--disable-dev-shm-usage')
 
     if is_local:
-        # Lokale Ausführung
-        if os.environ.get('AWS_EXECUTION_ENV') is None:
-            logging.debug("Driver Lokale Ausführung")
-            service = Service('/usr/local/bin/chromedriver')  # Pfad anpassen, falls nötig
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-        else:
-            # AWS Lambda Ausführung
-            logging.debug("Driver AWS Ausführung")
-            chrome_options.binary_location = '/opt/chrome/chrome'
-            driver = webdriver.Chrome('/opt/chromedriver', options=chrome_options)
+        service = Service('/usr/local/bin/chromedriver')
+        driver = webdriver.Chrome(service=service, options=chrome_options)
     else:
-        # Remote Selenium Ausführung
         selenium_host = os.environ.get('SELENIUM_HOST', 'localhost')
         driver = webdriver.Remote(
             command_executor=f'http://{selenium_host}:4444/wd/hub',
