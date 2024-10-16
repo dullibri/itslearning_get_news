@@ -145,3 +145,30 @@ variable "email_from" {
 variable "email_to" {
   type = string
 }
+
+output "ecr_repository_url" {
+  description = "The URL of the ECR repository"
+  value       = aws_ecr_repository.app_repo.repository_url
+}
+
+output "ecr_repository_name" {
+  description = "The name of the ECR repository"
+  value       = aws_ecr_repository.app_repo.name
+}
+
+output "push_commands" {
+  description = "Commands to push Docker image to ECR"
+  value       = <<EOT
+# Build your Docker image
+docker build -t ${aws_ecr_repository.app_repo.name} .
+
+# Authenticate Docker to your ECR registry
+aws ecr get-login-password --region ${aws_ecr_repository.app_repo.region} | docker login --username AWS --password-stdin ${aws_ecr_repository.app_repo.repository_url}
+
+# Tag your image
+docker tag ${aws_ecr_repository.app_repo.name}:latest ${aws_ecr_repository.app_repo.repository_url}:latest
+
+# Push the image to ECR
+docker push ${aws_ecr_repository.app_repo.repository_url}:latest
+EOT
+}
