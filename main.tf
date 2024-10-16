@@ -163,7 +163,7 @@ output "push_commands" {
 docker build -t ${aws_ecr_repository.app_repo.name} .
 
 # Authenticate Docker to your ECR registry
-aws ecr get-login-password --region ${aws_ecr_repository.app_repo.region} | docker login --username AWS --password-stdin ${aws_ecr_repository.app_repo.repository_url}
+aws ecr get-login-password --region ${data.aws_region.current.name} | docker login --username AWS --password-stdin ${aws_ecr_repository.app_repo.repository_url}
 
 # Tag your image
 docker tag ${aws_ecr_repository.app_repo.name}:latest ${aws_ecr_repository.app_repo.repository_url}:latest
@@ -172,3 +172,6 @@ docker tag ${aws_ecr_repository.app_repo.name}:latest ${aws_ecr_repository.app_r
 docker push ${aws_ecr_repository.app_repo.repository_url}:latest
 EOT
 }
+
+# Add this data source to get the current region
+data "aws_region" "current" {}
