@@ -10,6 +10,11 @@ services:
       SE_NODE_OVERRIDE_MAX_SESSIONS: 5
     volumes:
       - /dev/shm:/dev/shm
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   scraper:
     build: .
@@ -22,5 +27,7 @@ services:
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - EMAIL_FROM=${EMAIL_FROM}
       - EMAIL_TO=${EMAIL_TO}
+      - SELENIUM_HOST=selenium
     depends_on:
-      - selenium
+      selenium:
+        condition: service_healthy

@@ -36,7 +36,7 @@ def get_parameters():
         'EMAIL_TO': os.environ.get('EMAIL_TO')
     }
 
-def get_driver(is_local=False):
+def get_driver(is_local=False, max_retries=5, retry_interval=5):
     chrome_options = Options()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
@@ -47,10 +47,22 @@ def get_driver(is_local=False):
         driver = webdriver.Chrome(service=service, options=chrome_options)
     else:
         selenium_host = os.environ.get('SELENIUM_HOST', 'localhost')
-        driver = webdriver.Remote(
-            command_executor=f'http://{selenium_host}:4444/wd/hub',
-            options=chrome_options
-        )
+    
+        for attempt in range(max_retries):
+            try:
+                driver = webdriver.Remote(
+                    command_executor=f'http://{selenium_host}:4444/wd/hub',
+                    options=chrome_options
+                )
+                driver.implicitly_wait(10)
+                return driver
+            except WebDriverException as e:
+                if attempt < max_retries - 1:
+                    logging.warning(f"Attempt {attempt + 1} failed. Retrying in {retry_interval} seconds...")
+                    time.sleep(retry_interval)
+                else:
+                    logging.error(f"Failed to connect to Selenium after {max_retries} attempts.")
+                    raise
     
     driver.implicitly_wait(10)
     return driver
@@ -72,62 +84,82 @@ def check_for_js_errors(driver):
 def login(driver, username, password):
     driver.get("https://cloud.schule-mv.de/univention/saml/?location=/univention/portal/")
     time.sleep(10) 
+    logging.info("Navigated to login page")
+
     try:
         WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((By.ID, "umcLoginUsername"))
         )
-        logging.debug("The login in screen has shown up.")
-        username_field = driver.find_element(By.ID, "umcLoginUsername")
-        username_field.send_keys(username)
-        logging.debug("Username has been entered")
+        logging.debug("The login form is present.")
+    except TimeoutException:
+            logging.error("Login form did not appear within 60 seconds")
+            logging.error(f"Current URL: {driver.current_url}")
+            logging.error(f"Page source: {driver.page_source}")
+            raise
+    
+    username_field = driver.find_element(By.ID, "umcLoginUsername")
+    username_field.send_keys(username)
+    logging.debug("Username has been entered")
 
-        password_field = driver.find_element(By.ID, "umcLoginPassword")
-        password_field.send_keys(password)
-        logging.debug("Password has been entered")
+    password_field = driver.find_element(By.ID, "umcLoginPassword")
+    password_field.send_keys(password)
+    logging.debug("Password has been entered")
 
+    try:
         login_button = WebDriverWait(driver, 30).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'umcLoginFormButton') and .//span[contains(text(), 'Anmelden')]]"))
         )
         login_button.click()
         logging.debug("The login button has been clicked")
 
-        try:
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
-            )
-            logging.debug("Waiting for itslearning link to be clickable")
-            itslearning_link = WebDriverWait(driver, 60).until(
-                EC.element_to_be_clickable((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
-            )
-            logging.debug("itslearning link found")
-
-              # Holen Sie die URL des Links
-            itslearning_url = itslearning_link.get_attribute('href')
-            logging.debug(f"itslearning URL: {itslearning_url}")
-
-            logging.debug("Trying to open itslearning URL")
-            driver.execute_script(f"window.open('{itslearning_url}', '_blank');")
-            
-            # Warten Sie kurz, um sicherzustellen, dass der neue Tab geöffnet wurde
-            time.sleep(2)
-
-            # Wechseln Sie zum neuen Tab
-            driver.switch_to.window(driver.window_handles[-1])
-            
-            logging.debug(f"Current url after tab switch: {driver.current_url}")
-            
-            logging.info("Login and navigation to itslearning successful")
-
-        except Exception as e:
-            logging.error(f"Error during itslearning navigation: {str(e)}")
-            logging.debug(f"Current URL: {driver.current_url}")
-            logging.debug(f"Current page source: {driver.page_source}")
+    except TimeoutException:
+            logging.error("Login button did not become clickable within 60 seconds")
+            logging.error(f"Current URL: {driver.current_url}")
+            logging.error(f"Page source: {driver.page_source}")
             raise
-       
+
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
+        )
+        logging.debug("Waiting for itslearning link to be clickable")
+
+    except TimeoutException:
+            logging.error("itslearning link did not appear within 60 seconds after login")
+            logging.error(f"Current URL: {driver.current_url}")
+            logging.error(f"Page source: {driver.page_source}")
+            raise
+    
+    try: 
+        itslearning_link = WebDriverWait(driver, 60).until(
+            EC.element_to_be_clickable((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
+        )
+        logging.debug("itslearning link found")
+
+            # Holen Sie die URL des Links
+        itslearning_url = itslearning_link.get_attribute('href')
+        logging.debug(f"itslearning URL: {itslearning_url}")
+
+        logging.debug("Trying to open itslearning URL")
+        driver.execute_script(f"window.open('{itslearning_url}', '_blank');")
+        
+        # Warten Sie kurz, um sicherzustellen, dass der neue Tab geöffnet wurde
+        time.sleep(2)
+
+        # Wechseln Sie zum neuen Tab
+        driver.switch_to.window(driver.window_handles[-1])
+        
+        logging.debug(f"Current url after tab switch: {driver.current_url}")
+        
+        logging.info("Login and navigation to itslearning successful")
+
     except Exception as e:
-        logging.error(f"Login failed: {str(e)}")
-        logging.error(f"Stacktrace: {traceback.format_exc()}")
+        logging.error(f"Error during itslearning navigation: {str(e)}")
+        logging.debug(f"Current URL: {driver.current_url}")
+        logging.debug(f"Current page source: {driver.page_source}")
         raise
+       
+
 
 def get_messages(driver):
     messages = []
@@ -302,14 +334,22 @@ def send_email(betreff, messages, notifications, params):
 
 def lambda_handler(event, context):
     params = get_parameters()
-    driver = get_driver(is_local=args.local)
-
+    driver = None
     try:
+        driver = get_driver(is_local=args.local)
+        logging.info("WebDriver initialized successfully")
+
         login(driver, params['ITSLEARNING_USERNAME'], params['ITSLEARNING_PASSWORD'])
+        logging.info("Login successful")
+
         check_for_js_errors(driver)
         messages = get_messages(driver)
+        logging.info(f"Retrieved {len(messages)} messages")
+
         check_for_js_errors(driver)
         notifications = get_notifications(driver)
+        logging.info(f"Retrieved {len(notifications)} notifications")
+
         check_for_js_errors(driver)
 
         recent_messages = check_for_recent_messages(messages)
@@ -320,6 +360,7 @@ def lambda_handler(event, context):
             betreff = "Es gibt neue Mitteilungen oder Benachrichtigungen"
 
         send_email(betreff, messages[:5], notifications[:5], params)
+        logging.info("Email sent successfully")
 
         return {
             'statusCode': 200,
@@ -329,13 +370,17 @@ def lambda_handler(event, context):
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
         logging.error(f"Stacktrace: {traceback.format_exc()}")
+        if driver:
+            logging.error(f"Final URL: {driver.current_url}")
+            logging.error(f"Final page source: {driver.page_source}")
         return {
             'statusCode': 500,
             'body': f'An error occurred: {str(e)}'
         }
 
     finally:
-        driver.quit()
+        if driver:
+            driver.quit()
 
 if __name__ == "__main__":
     print(lambda_handler(None, None))
