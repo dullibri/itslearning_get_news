@@ -68,7 +68,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
 resource "aws_cloudwatch_event_rule" "daily_task" {
   name                = "run-itslearning-scraper-daily"
   description         = "Triggers itslearning scraper daily at 12:00 PM CET"
-  schedule_expression = "cron(0 12 * * ? *)"  # 11:00 UTC = 12:00 CET (adjust for daylight saving time if needed)
+  schedule_expression = "cron(0 14 * * ? *)"  # 11:00 UTC = 12:00 CET (adjust for daylight saving time if needed)
 }
 
 # Create an EventBridge target for the ECS task
@@ -166,7 +166,7 @@ output "push_commands" {
   description = "Commands to push Docker image to ECR"
   value       = <<EOT
 # Build your Docker image
-docker build -t ${aws_ecr_repository.app_repo.name} .
+docker buildx build --platform linux/amd64 -t ${aws_ecr_repository.app_repo.name} .
 
 # Authenticate Docker to your ECR registry
 aws ecr get-login-password --region ${data.aws_region.current.name} | docker login --username AWS --password-stdin ${aws_ecr_repository.app_repo.repository_url}

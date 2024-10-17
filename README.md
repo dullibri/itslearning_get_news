@@ -54,7 +54,7 @@ Itslearning is a school management platform that does not integrate with emails 
 
 1. Build the Docker image:
    ```
-   docker build -t itslearning-scraper .
+   docker buildx build --platform linux/amd64 -t itslearning-scraper .
    ```
 
 2. Authenticate Docker to your ECR registry:
