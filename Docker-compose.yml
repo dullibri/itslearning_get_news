@@ -28,6 +28,9 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - EMAIL_TO=${EMAIL_TO}
       - SELENIUM_HOST=selenium
+    volumes:
+      - ./:/app  
     depends_on:
       selenium:
         condition: service_healthy
+    command: tail -f /dev/null  
