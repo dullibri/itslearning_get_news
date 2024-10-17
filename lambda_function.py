@@ -83,60 +83,63 @@ def check_for_js_errors(driver):
 
 def login(driver, username, password):
     driver.get("https://cloud.schule-mv.de/univention/saml/?location=/univention/portal/")
-    time.sleep(10) 
+    time.sleep(15)  # Increased initial wait time
     logging.info("Navigated to login page")
 
     try:
-        WebDriverWait(driver, 60).until(
+        username_field = WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((By.ID, "umcLoginUsername"))
         )
         logging.debug("The login form is present.")
-    except TimeoutException:
-            logging.error("Login form did not appear within 60 seconds")
-            logging.error(f"Current URL: {driver.current_url}")
-            logging.error(f"Page source: {driver.page_source}")
-            raise
-    
-    username_field = driver.find_element(By.ID, "umcLoginUsername")
-    username_field.send_keys(username)
-    logging.debug("Username has been entered")
+        username_field.send_keys(username)
+        logging.debug("Username has been entered")
 
-    password_field = driver.find_element(By.ID, "umcLoginPassword")
-    password_field.send_keys(password)
-    logging.debug("Password has been entered")
+        password_field = driver.find_element(By.ID, "umcLoginPassword")
+        password_field.send_keys(password)
+        logging.debug("Password has been entered")
 
-    try:
-        login_button = WebDriverWait(driver, 30).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'umcLoginFormButton') and .//span[contains(text(), 'Anmelden')]]"))
-        )
-        login_button.click()
+        # Try multiple locators for the login button
+        button_locators = [
+            (By.XPATH, "//button[contains(@class, 'umcLoginFormButton') and .//span[contains(text(), 'Anmelden')]]"),
+            (By.XPATH, "//button[@type='submit' and contains(@class, 'umcLoginFormButton')]"),
+            (By.CSS_SELECTOR, "button.umcLoginFormButton[type='submit']")
+        ]
+
+        login_button = None
+        for locator in button_locators:
+            try:
+                login_button = WebDriverWait(driver, 20).until(
+                    EC.element_to_be_clickable(locator)
+                )
+                if login_button:
+                    break
+            except TimeoutException:
+                continue
+
+        if not login_button:
+            raise Exception("Login button not found with any of the specified locators")
+
+        logging.debug(f"Login button found: {login_button.is_displayed()}, {login_button.is_enabled()}")
+        logging.debug(f"Login button HTML: {login_button.get_attribute('outerHTML')}")
+
+        # Try multiple methods to click the button
+        try:
+            login_button.click()
+        except Exception as e:
+            logging.debug(f"Standard click failed: {str(e)}. Trying JavaScript click.")
+            driver.execute_script("arguments[0].click();", login_button)
+
         logging.debug("The login button has been clicked")
 
-    except TimeoutException:
-            logging.error("Login button did not become clickable within 60 seconds")
-            logging.error(f"Current URL: {driver.current_url}")
-            logging.error(f"Page source: {driver.page_source}")
-            raise
+        time.sleep(5) 
+        check_for_js_errors(driver)
 
-    try:
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
-        )
-        logging.debug("Waiting for itslearning link to be clickable")
 
-    except TimeoutException:
-            logging.error("itslearning link did not appear within 60 seconds after login")
-            logging.error(f"Current URL: {driver.current_url}")
-            logging.error(f"Page source: {driver.page_source}")
-            raise
-    
-    try: 
         itslearning_link = WebDriverWait(driver, 60).until(
-            EC.element_to_be_clickable((By.XPATH, "//a[@aria-label='itslearning Neuer Tab']"))
+            EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, 'itslearning') and contains(@class, 'portal-tile')]"))
         )
-        logging.debug("itslearning link found")
+        logging.debug("itslearning link is present")
 
-            # Holen Sie die URL des Links
         itslearning_url = itslearning_link.get_attribute('href')
         logging.debug(f"itslearning URL: {itslearning_url}")
 
