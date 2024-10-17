@@ -28,7 +28,8 @@ resource "aws_ecs_task_definition" "app_task" {
         { name = "SMTP_USERNAME", value = var.smtp_username },
         { name = "SMTP_PASSWORD", value = var.smtp_password },
         { name = "EMAIL_FROM", value = var.email_from },
-        { name = "EMAIL_TO", value = var.email_to }
+        { name = "EMAIL_TO", value = var.email_to },
+        { name = "RUN_MODE", value = var.run_mode }
       ]
     }
   ])
@@ -67,7 +68,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
 resource "aws_cloudwatch_event_rule" "daily_task" {
   name                = "run-itslearning-scraper-daily"
   description         = "Triggers itslearning scraper daily at 12:00 PM CET"
-  schedule_expression = "cron(0 11 * * ? *)"  # 11:00 UTC = 12:00 CET (adjust for daylight saving time if needed)
+  schedule_expression = "cron(0 12 * * ? *)"  # 11:00 UTC = 12:00 CET (adjust for daylight saving time if needed)
 }
 
 # Create an EventBridge target for the ECS task
@@ -144,6 +145,11 @@ variable "email_from" {
 
 variable "email_to" {
   type = string
+}
+
+variable "run_mode" {
+  type    = string
+  default = "production"
 }
 
 output "ecr_repository_url" {
