@@ -166,9 +166,10 @@ chrome-aws-lambda-layer.zip
 *.js
 *.br
 /package
-/lambda_*
+
 
 terraform.tfstate
 terraform.tfstate.backup
 
 .terraform
+terraform.tfvars

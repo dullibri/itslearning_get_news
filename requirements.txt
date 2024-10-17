@@ -1,4 +1,4 @@
-boto3==1.28.84
 selenium==4.15.2
 webdriver-manager==4.0.1
 python-dotenv==1.0.0
+chromedriver-binary==102.0.5005.61.0
