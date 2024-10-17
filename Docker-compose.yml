@@ -28,9 +28,10 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - EMAIL_TO=${EMAIL_TO}
       - SELENIUM_HOST=selenium
+      - RUN_MODE=${RUN_MODE:-development}
     volumes:
-      - ./:/app  
+      - ./:/app
     depends_on:
       selenium:
         condition: service_healthy
-    command: tail -f /dev/null  
+    command: sh -c "if [ \"$$RUN_MODE\" = \"production\" ]; then python lambda_function.py; else tail -f /dev/null; fi"
