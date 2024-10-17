@@ -39,7 +39,7 @@ Itslearning is a school management platform that does not integrate with emails 
 
 4. For development mode (to keep the container running without executing the script):
    ```
-   docker-compose run -d -e RUN_MODE=development scraper
+   docker-compose run -e RUN_MODE=development -it scraper bash
    ```
    This will start the scraper container in the background without running the main script.
 
